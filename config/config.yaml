@@ -1,0 +1,20 @@
+database:
+  host: localhost
+  port: 5433
+  name: tikibook_db
+  user: tikibook
+  password: "tikibook"
+
+tables:
+  books:
+    file: book_data.csv
+    primary_key: id
+    load_order: 1
+  comments:
+    file: comments.csv
+    primary_key: comment_id
+    load_order: 2
+
+paths:
+  data_raw: data/raw
+  logs: logs
