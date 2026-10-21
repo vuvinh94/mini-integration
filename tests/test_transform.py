@@ -7,6 +7,7 @@ from src.transform import transform_books, transform_comments
 def sample_books_raw():
     return pd.DataFrame([
         {
+            "product_id": 74021317,
             "title": "Cây Cam Ngọt Của Tôi",
             "authors": "José Mauro",
             "original_price": 108000,
@@ -20,6 +21,7 @@ def sample_books_raw():
             "cover_link": "https://img.tikicdn.com/example1.jpg"
         },
         {
+            "product_id": 74021317,
             "title": "Cây Cam Ngọt Của Tôi",
             "authors": "José Mauro",
             "original_price": 108000,
@@ -33,6 +35,7 @@ def sample_books_raw():
             "cover_link": "https://img.tikicdn.com/example1.jpg"
         },
         {
+            "product_id": 184466860,
             "title": "Nhà Giả Kim",
             "authors": "Paulo Coelho",
             "original_price": 79000,
@@ -83,11 +86,11 @@ def sample_comments_raw():
 
 class TestTransformBooks:
 
-    def test_removes_duplicates_and_adds_id(self, sample_books_raw):
+    def test_removes_duplicates_and_uses_product_id(self, sample_books_raw):
         result = transform_books(sample_books_raw)
         assert len(result) == 2
-        assert "id" in result.columns
-        assert list(result["id"]) == [1, 2]
+        assert "product_id" not in result.columns
+        assert list(result["id"]) == [74021317, 184466860]
 
     def test_renames_catagory_to_category(self, sample_books_raw):
         result = transform_books(sample_books_raw)
@@ -112,3 +115,9 @@ class TestTransformComments:
         result = transform_comments(sample_comments_raw)
         assert result["rating"].min() >= 1
         assert result["rating"].max() <= 5
+
+    def test_drops_comments_without_matching_book(self, sample_comments_raw):
+        orphan = sample_comments_raw.iloc[[2]].assign(product_id=2393619, comment_id=1003)
+        df = pd.concat([sample_comments_raw, orphan], ignore_index=True)
+        result = transform_comments(df, book_ids=pd.Series([74021317]))
+        assert set(result["comment_id"]) == {1001, 1002}

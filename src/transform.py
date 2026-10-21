@@ -24,7 +24,12 @@ def transform_books(df: pd.DataFrame) -> pd.DataFrame:
     if "catagory" in df.columns:
         df = df.rename(columns={"catagory": "category"})
 
+    # Dùng mã sản phẩm Tiki làm id để khớp với comments.product_id
+    df = df.rename(columns={"product_id": "id"})
+
     df = _strip_strings(df)
+
+    df["id"] = pd.to_numeric(df["id"], errors="coerce").astype("Int64")
 
     # Ép kiểu các cột số nguyên
     numeric_int_cols = ["quantity", "n_review", "pages"]
@@ -36,12 +41,12 @@ def transform_books(df: pd.DataFrame) -> pd.DataFrame:
     df["current_price"] = pd.to_numeric(df["current_price"], errors="coerce")
     df["avg_rating"] = pd.to_numeric(df["avg_rating"], errors="coerce")
 
-    # Loại bỏ bản ghi thiếu tiêu đề hoặc thiếu giá bán
-    df = df.dropna(subset=["title", "current_price"])
+    # Loại bỏ bản ghi thiếu id, tiêu đề hoặc thiếu giá bán
+    df = df.dropna(subset=["id", "title", "current_price"])
 
-    # Khử trùng lặp dựa trên tiêu đề, tác giả và giá
+    # Khử trùng lặp theo id sản phẩm
     before = len(df)
-    df = df.drop_duplicates(subset=["title", "authors", "original_price", "current_price"])
+    df = df.drop_duplicates(subset=["id"])
     if len(df) < before:
         logger.info(f"Đã loại bỏ {before - len(df)} dòng sách bị trùng lặp")
 
@@ -54,9 +59,7 @@ def transform_books(df: pd.DataFrame) -> pd.DataFrame:
     # Giới hạn discount_percent trong khoảng từ 0% đến 100%
     df["discount_percent"] = df["discount_percent"].clip(lower=0.0, upper=100.0)
 
-    # Tạo id tuần tự từ 1
     df = df.reset_index(drop=True)
-    df["id"] = (df.index + 1).astype("Int64")
 
     # Sắp xếp lại thứ tự cột khớp với schema database
     target_columns = [
@@ -71,8 +74,11 @@ def transform_books(df: pd.DataFrame) -> pd.DataFrame:
     return df
 
 
-def transform_comments(df: pd.DataFrame) -> pd.DataFrame:
-    """Làm sạch và chuyển đổi dữ liệu nhận xét/đánh giá Tiki."""
+def transform_comments(df: pd.DataFrame, book_ids: pd.Series = None) -> pd.DataFrame:
+    """Làm sạch và chuyển đổi dữ liệu nhận xét/đánh giá Tiki.
+
+    Nếu truyền book_ids, chỉ giữ các bình luận có product_id nằm trong book_ids.
+    """
     logger.info("Đang chuyển đổi bảng: comments")
     df = df.copy()
     df = _strip_strings(df)
@@ -95,6 +101,13 @@ def transform_comments(df: pd.DataFrame) -> pd.DataFrame:
 
     # Giữ điểm rating trong khoảng hợp lệ [1, 5]
     df = df[(df["rating"] >= 1) & (df["rating"] <= 5)]
+
+    # Loại bỏ bình luận của sản phẩm không có trong bảng books
+    if book_ids is not None:
+        before = len(df)
+        df = df[df["product_id"].isin(book_ids)]
+        if len(df) < before:
+            logger.info(f"Đã loại bỏ {before - len(df)} bình luận không có sách tương ứng")
 
     target_columns = [
         "comment_id", "product_id", "customer_id", "rating",

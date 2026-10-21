@@ -1,10 +1,20 @@
 import logging
 from src.extract import extract_table
-from src.transform import TRANSFORM_MAP
+from src.transform import TRANSFORM_MAP, transform_books, transform_comments
 from src.load import load_all
 from src.config_loader import BASE_DIR
 
 logger = logging.getLogger(__name__)
+
+
+def _get_book_ids(dataframes: dict, tables_config: dict, data_raw_dir):
+    """Lấy danh sách id sách hợp lệ để lọc bình luận."""
+    if "books" in dataframes:
+        return dataframes["books"]["id"]
+    # Khi chỉ chạy --table comments: đọc file sách để lấy id, không nạp bảng books
+    logger.info("Đọc dữ liệu books để lọc bình luận theo product_id")
+    books_df = extract_table("books", data_raw_dir / tables_config["books"]["file"])
+    return transform_books(books_df)["id"]
 
 
 def run_pipeline(config: dict, table: str = None, stage: str = "all"):
@@ -33,8 +43,12 @@ def run_pipeline(config: dict, table: str = None, stage: str = "all"):
 
     if stage in ("all", "transform"):
         logger.info("=== BƯỚC: TRANSFORM (CHUYỂN ĐỔI) ===")
-        for table_name in list(dataframes.keys()):
-            if table_name in TRANSFORM_MAP:
+        # Biến đổi theo load_order để books có trước comments
+        for table_name in sorted(dataframes, key=lambda t: tables_config[t]["load_order"]):
+            if table_name == "comments":
+                book_ids = _get_book_ids(dataframes, tables_config, data_raw_dir)
+                dataframes[table_name] = transform_comments(dataframes[table_name], book_ids)
+            elif table_name in TRANSFORM_MAP:
                 dataframes[table_name] = TRANSFORM_MAP[table_name](dataframes[table_name])
 
     if stage in ("all", "load"):
