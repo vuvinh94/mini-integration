@@ -1,5 +1,5 @@
 CREATE TABLE IF NOT EXISTS books (
-    id SERIAL PRIMARY KEY,
+    id BIGINT PRIMARY KEY,  -- mã sản phẩm Tiki (product_id)
     title TEXT NOT NULL,
     authors TEXT,
     original_price NUMERIC(12, 2),
@@ -16,7 +16,7 @@ CREATE TABLE IF NOT EXISTS books (
 
 CREATE TABLE IF NOT EXISTS comments (
     comment_id BIGINT PRIMARY KEY,
-    product_id BIGINT NOT NULL,
+    product_id BIGINT NOT NULL REFERENCES books(id),
     customer_id BIGINT,
     rating INTEGER NOT NULL,
     title TEXT,
