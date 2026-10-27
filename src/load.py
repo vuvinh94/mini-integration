@@ -2,7 +2,6 @@ import pandas as pd
 import logging
 import psycopg2
 from io import StringIO
-from tenacity import retry, stop_after_attempt, wait_exponential, retry_if_exception_type
 
 logger = logging.getLogger(__name__)
 
@@ -37,11 +36,6 @@ class DatabaseConnection:
             self.conn.close()
             logger.debug("Đã đóng kết nối cơ sở dữ liệu.")
 
-    @retry(
-        stop=stop_after_attempt(3),
-        wait=wait_exponential(multiplier=1, min=2, max=10),
-        retry=retry_if_exception_type(psycopg2.OperationalError),
-    )
     def truncate_table(self, table_name: str):
         with self.conn.cursor() as cur:
             cur.execute(f"TRUNCATE TABLE {table_name} CASCADE;")
@@ -49,11 +43,6 @@ class DatabaseConnection:
         logger.info(f"Đã làm sạch (truncate) bảng: {table_name}")
 
 
-@retry(
-    stop=stop_after_attempt(3),
-    wait=wait_exponential(multiplier=1, min=2, max=10),
-    retry=retry_if_exception_type(psycopg2.OperationalError),
-)
 def load_table_with_copy(db: DatabaseConnection, df: pd.DataFrame, table_name: str):
     """Nạp DataFrame vào PostgreSQL bằng giao thức COPY tốc độ cao."""
     if df.empty:

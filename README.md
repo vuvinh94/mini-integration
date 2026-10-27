@@ -20,7 +20,7 @@ Pipeline ETL end-to-end trích xuất, làm sạch, xác thực và nạp dữ l
               │
               ▼
 ┌───────────────────────────┐
-│          EXTRACT          │  Pandas read_csv (UTF-8, retry logic)
+│          EXTRACT          │  Pandas read_csv (UTF-8)            
 └─────────────┬─────────────┘
               │
               ▼

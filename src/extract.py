@@ -1,7 +1,6 @@
 import pandas as pd
 import logging
 from pathlib import Path
-from tenacity import retry, stop_after_attempt, wait_exponential, retry_if_exception_type
 
 logger = logging.getLogger(__name__)
 
@@ -10,20 +9,11 @@ class ExtractionError(Exception):
     """Lỗi xảy ra trong quá trình trích xuất dữ liệu."""
     pass
 
-
-@retry(
-    stop=stop_after_attempt(3),
-    wait=wait_exponential(multiplier=1, min=2, max=10),
-    retry=retry_if_exception_type((pd.errors.ParserError, IOError)),
-    reraise=True,
-)
-def _read_csv_with_retry(filepath: Path) -> pd.DataFrame:
-    """Đọc file CSV với mã hóa UTF-8 và cơ chế tự động thử lại khi gặp lỗi tạm thời."""
+def _read_csv(filepath: Path) -> pd.DataFrame:
+    """Đọc file CSV với mã hóa UTF-8"""
     logger.debug(f"Đang thử đọc file: {filepath}")
-    try:
-        return pd.read_csv(filepath, encoding="utf-8")
-    except UnicodeDecodeError:
-        return pd.read_csv(filepath, encoding="utf-8-sig")
+    return pd.read_csv(filepath, encoding="utf-8")
+
 
 
 def extract_table(table_name: str, file_path: Path) -> pd.DataFrame:
@@ -36,7 +26,7 @@ def extract_table(table_name: str, file_path: Path) -> pd.DataFrame:
         raise ExtractionError(msg)
 
     try:
-        df = _read_csv_with_retry(file_path)
+        df = _read_csv(file_path)
         logger.info(
             f"Đã đọc thành công bảng {table_name}: {len(df):,} dòng, {len(df.columns)} cột"
         )
